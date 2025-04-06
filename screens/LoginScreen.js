@@ -8,11 +8,16 @@ import {
   SafeAreaView,
   StatusBar,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 
 import BackIcon from '../assets/icons/BackIcon';
 import UserAvatarIcon from '../assets/icons/UserAvatar';
 import PasswordIcon from '../assets/icons/PasswordIcon';
+import { API_BASE_URL } from '../config/config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+
 
 const BackIon = () => (
   <TouchableOpacity>
@@ -29,21 +34,65 @@ const PasswordIon = () => (
 );
 
 const LoginScreen = ({ navigation }) => {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = () => {
-    // Check if username and password are "admin"
-    if (username === 'admin' && password === 'admin') {
-      // Navigate to AdminHomeScreen
-      navigation.navigate('AdminHomeScreen');
-    } else {
-      // Show an error message for invalid credentials
-      Alert.alert(
-        'Login Failed',
-        'Invalid username or password. Please try again.',
-        [{ text: 'OK' }]
-      );
+  // Handle login function
+  const handleLogin = async () => {
+    // Validate inputs
+    if (!email || !password) {
+      Alert.alert('Error', 'Email and password are required');
+      return;
+    }
+
+    // Email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+      console.log('Login response:', data);
+
+
+    if (response.ok) {
+      // Store user data in AsyncStorage
+      await AsyncStorage.setItem('userData', JSON.stringify(data.user));
+      
+      // You might want to store the user type separately for easier access
+      await AsyncStorage.setItem('userType', data.user.usertype);
+      
+      // Handle successful login
+      Alert.alert('Success', data.message);
+
+        // Navigate based on user type
+        if (data.user.usertype === 'admin') {
+          navigation.navigate('AdminHomeScreen');
+        } else {
+          navigation.navigate('HomeScreen');
+        }
+      } else {
+        // Handle login error
+        Alert.alert('Error', data.message || 'Login failed');
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      Alert.alert('Error', 'Network error. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -66,11 +115,13 @@ const LoginScreen = ({ navigation }) => {
           </View>
           <TextInput
             style={styles.input}
-            placeholder="Username"
+            placeholder="Email"
             defaultValue=""
             placeholderTextColor="#999"
-            value={username}
-            onChangeText={setUsername}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
           />
         </View>
 
@@ -95,12 +146,17 @@ const LoginScreen = ({ navigation }) => {
         <TouchableOpacity
           style={styles.primaryButton}
           onPress={handleLogin}
+          disabled={isLoading}
         >
-          <Text style={styles.buttonText}>Login</Text>
+          {isLoading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.buttonText}>Login</Text>
+          )}
         </TouchableOpacity>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Doesnt have an account? </Text>
+          <Text style={styles.footerText}>Doesn't have an account? </Text>
           <TouchableOpacity onPress={() => navigation.navigate('CreateAccount')}>
             <Text style={styles.signupText}>Signup</Text>
           </TouchableOpacity>

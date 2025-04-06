@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,18 @@ import {
   StyleSheet,
   SafeAreaView,
   StatusBar,
+  Alert,
+  ActivityIndicator,
+  Switch,
 } from 'react-native';
-
+import { API_BASE_URL } from '../config/config';
 import BackIcon from '../assets/icons/BackIcon';
 import UserAvatarIcon from '../assets/icons/UserAvatar';
 import EmailIcon from '../assets/icons/EmailIcon';
 import PasswordIcon from '../assets/icons/PasswordIcon';
+import PhoneIcon from '../assets/icons/EmailIcon'; // You'll need to create or import this
 
-const BackIon = () => (
+const BackButton = () => (
   <TouchableOpacity>
     <Text><BackIcon/></Text>
   </TouchableOpacity>
@@ -24,19 +28,83 @@ const UserIcon = () => (
   <Text><UserAvatarIcon/></Text>
 );
 
-const EmailIon = () => (
+const EmailInputIcon = () => (
   <Text><EmailIcon/></Text>
 );
 
-const PasswordIon = () => (
+const PasswordInputIcon = () => (
   <Text><PasswordIcon/></Text>
 );
 
+const PhoneInputIcon = () => (
+  <Text><PhoneIcon/></Text> // If you don't have this icon, you can reuse another icon
+);
+
 const CreateAccountScreen = ({ navigation }) => {
+  // State for form fields
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [password, setPassword] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Handle signup
+  const handleSignup = async () => {
+    if (!username || !email || !phoneNumber || !password) {
+      Alert.alert('Error', 'Please fill all fields');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert('Error', 'Please enter a valid email address');
+      return;
+    }
+
+    setLoading(true);
+
+    const payload = {
+      name: username,
+      email,
+      password,
+      phoneNumber,
+      usertype: isAdmin ? 'admin' : 'user'
+    };
+
+    console.log('Payload:', payload); // Debugging the data before sending
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/signup`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+      console.log('Response:', data); // Debugging response from the backend
+
+      if (response.ok) {
+        Alert.alert('Success', data.message, [
+          { text: 'OK', onPress: () => navigation.navigate('Login') }
+        ]);
+      } else {
+        Alert.alert('Error', data.message);
+      }
+    } catch (error) {
+      console.error('Signup error:', error);
+      Alert.alert('Error', 'Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" />
-      <BackIon />
+      <BackButton />
       <View style={styles.formContainer}>
         <Text style={styles.headerText}>
           Create <Text style={styles.accentText}>Account</Text>
@@ -52,18 +120,36 @@ const CreateAccountScreen = ({ navigation }) => {
           <TextInput
             style={styles.input}
             placeholder="Username"
-            defaultValue="Priya"
+            value={username}
+            onChangeText={setUsername}
             placeholderTextColor="#999"
           />
         </View>
 
         <View style={styles.inputContainer}>
           <View style={styles.iconContainer}>
-            <EmailIon />
+            <EmailInputIcon />
+          </View>
+          <TextInput
+            style={styles.input}
+            placeholder="Email"
+            value={email}
+            onChangeText={setEmail}
+            placeholderTextColor="#999"
+            keyboardType="email-address"
+            autoCapitalize="none"
+          />
+        </View>
+
+        <View style={styles.inputContainer}>
+          <View style={styles.iconContainer}>
+            <PhoneInputIcon />
           </View>
           <TextInput
             style={styles.input}
             placeholder="Mobile Number"
+            value={phoneNumber}
+            onChangeText={setPhoneNumber}
             placeholderTextColor="#999"
             keyboardType="phone-pad"
           />
@@ -71,18 +157,38 @@ const CreateAccountScreen = ({ navigation }) => {
 
         <View style={styles.inputContainer}>
           <View style={styles.iconContainer}>
-            <PasswordIon />
+            <PasswordInputIcon />
           </View>
           <TextInput
             style={styles.input}
             placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
             placeholderTextColor="#999"
             secureTextEntry
           />
         </View>
 
-        <TouchableOpacity style={styles.primaryButton}>
-          <Text style={styles.buttonText}>Continue</Text>
+        <View style={styles.switchContainer}>
+          <Text style={styles.switchLabel}>Register as Admin</Text>
+          <Switch
+            value={isAdmin}
+            onValueChange={setIsAdmin}
+            trackColor={{ false: "#E0E0E0", true: "#D35400" }}
+            thumbColor={isAdmin ? "#FFFFFF" : "#FFFFFF"}
+          />
+        </View>
+
+        <TouchableOpacity 
+          style={styles.primaryButton}
+          onPress={handleSignup}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#FFFFFF" />
+          ) : (
+            <Text style={styles.buttonText}>Continue</Text>
+          )}
         </TouchableOpacity>
 
         <View style={styles.footer}>
@@ -96,7 +202,7 @@ const CreateAccountScreen = ({ navigation }) => {
   );
 };
 
-// Styles
+// Styles with added style for switch container
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -136,6 +242,17 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     height: 50,
+    color: '#333',
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+    paddingHorizontal: 10,
+  },
+  switchLabel: {
+    fontSize: 16,
     color: '#333',
   },
   primaryButton: {
